@@ -80,4 +80,6 @@ Yoloong-AI 24 小时在线个人微信助手
 - Online verification: 公网 `https://www.yoloong.com/ai/health` 返回 `{"ok": true}`；后台登录成功，`/api/status` 显示 DeepSeek/DashScope 密钥已按掩码加载且服务非离线。
 - Online verification: 已通过公网后台验证 DeepSeek 对话、主动 tick、记忆写入/检索、中国地区查询构造；审批接口使用正确 `name`/`description`/`target` payload 后生成 high 风险确认 ID，并通过 `/reject` 清空，待审批列表为空。
 - Correction logged: 上一次误把“二维码已生成”接近“微信完成接入”的表达是错误边界；完成标准已补充到部署文档，必须以账号凭据、频道 configured、网关重启保留和实际微信消息链路为准。
+- Verification: `python -m unittest discover -s tests -v` 通过 27 个用例；`python -m compileall yoloong_ai tests`、`git diff --check`、部署脚本语法检查和已跟踪文件敏感信息扫描均通过。
+- Publish: 文档闭环记录已提交并推送到 `origin/main`，提交为 `48e3f28`。
 - Current status: Yoloong-AI Web 后台在线，微信扫码授权未完成；阻塞原因是当前网络无法访问服务器 SSH，而不是 OpenClaw 或 API 已完成失败。
