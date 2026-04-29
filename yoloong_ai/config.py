@@ -71,6 +71,11 @@ class RuntimeConfig:
     approval_channel: str
     idle_interval_seconds: int
     offline: bool
+    web_base_path: str
+    public_url: str
+    admin_user: str
+    admin_password_hash: str | None
+    session_secret: str | None
     deepseek: DeepSeekConfig
     dashscope: DashScopeConfig
 
@@ -98,6 +103,11 @@ class RuntimeConfig:
             approval_channel=source.get("YOLOONG_APPROVAL_CHANNEL", "wechat"),
             idle_interval_seconds=_int(source.get("YOLOONG_IDLE_INTERVAL_SECONDS"), 900),
             offline=_bool(source.get("YOLOONG_OFFLINE"), False),
+            web_base_path=normalize_base_path(source.get("YOLOONG_WEB_BASE_PATH", "/")),
+            public_url=source.get("YOLOONG_PUBLIC_URL", "https://www.yoloong.com/ai/"),
+            admin_user=source.get("YOLOONG_ADMIN_USER", "yoloong"),
+            admin_password_hash=source.get("YOLOONG_ADMIN_PASSWORD_HASH"),
+            session_secret=source.get("YOLOONG_SESSION_SECRET"),
             deepseek=DeepSeekConfig(
                 api_key=source.get("DEEPSEEK_API_KEY"),
                 base_url=source.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
@@ -128,8 +138,22 @@ class RuntimeConfig:
             "region_profile": self.region_profile,
             "approval_channel": self.approval_channel,
             "offline": self.offline,
+            "web_base_path": self.web_base_path,
+            "public_url": self.public_url,
+            "admin_user": self.admin_user,
+            "admin_password_hash": "<present>" if self.admin_password_hash else "<missing>",
+            "session_secret": "<present>" if self.session_secret else "<missing>",
             "deepseek_api_key": mask_secret(self.deepseek.api_key),
             "dashscope_api_key": mask_secret(self.dashscope.api_key),
             "deepseek_chat_model": self.deepseek.chat_model,
             "dashscope_vision_model": self.dashscope.vision_model,
         }
+
+
+def normalize_base_path(value: str) -> str:
+    value = (value or "/").strip()
+    if not value.startswith("/"):
+        value = "/" + value
+    if len(value) > 1:
+        value = value.rstrip("/")
+    return value

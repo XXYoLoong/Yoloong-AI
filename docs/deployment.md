@@ -54,6 +54,23 @@ YOLOONG_DATA_DIR=/opt/yoloong-ai/data
 YOLOONG_SAFE_ROOT=/opt/yoloong-ai
 YOLOONG_REGION_PROFILE=china
 YOLOONG_APPROVAL_CHANNEL=wechat
+YOLOONG_WEB_BASE_PATH=/ai
+YOLOONG_PUBLIC_URL=https://www.yoloong.com/ai/
+YOLOONG_ADMIN_USER=yoloong
+YOLOONG_ADMIN_PASSWORD_HASH=...
+YOLOONG_SESSION_SECRET=...
+```
+
+生成后台账号密码和哈希：
+
+```bash
+python3 -m yoloong_ai generate-admin --user yoloong
+```
+
+Web 调试后台默认挂载到：
+
+```text
+https://www.yoloong.com/ai/
 ```
 
 ## OpenClaw 微信绑定

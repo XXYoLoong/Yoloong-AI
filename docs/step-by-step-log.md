@@ -43,3 +43,12 @@ Yoloong-AI 24 小时在线个人微信助手
 - Server access: 通过 OpenSSH 和 PuTTY/plink 多次尝试连接 `47.121.183.23:22`，TCP 端口可达，但远端在 SSH banner/密钥交换前主动关闭连接；未能进入服务器执行盘点或部署，未写入任何服务器文件。
 - Publish: 已提交 `a5949b6`（`Build OpenClaw-based Yoloong assistant core`）并推送到 `origin/main`。
 - Remaining caveat: 服务器部署和云端密钥写入尚未执行，原因是 SSH 入口在认证前被远端关闭；需要恢复 SSH banner/登录通道或提供新的可用访问入口后继续部署。
+
+### 2026-04-29 Round 3
+
+- User correction: 上一轮只交付了代码骨架，未完成完整在线体系、网页调试后台、服务器部署和微信扫码授权闭环。
+- Skill mode: 已加载 `pua` 与前端设计流程，按端到端 owner 标准继续推进。
+- Server audit: SSH 已恢复；服务器为 Ubuntu 24.04.4，Node 24.14.0，Python 3.12.3，Nginx 1.24.0；`yoloong-site`、`openclaw-gateway`、`astrbot`、`contest-agent-relay`、PostgreSQL 正在运行。
+- Decision: 不直接删除根站点，先新增 `https://www.yoloong.com/ai/` 私有后台；旧 OpenClaw 工作区需备份后替换为江徽音工作区。若后续确认旧服务无用，再备份停用。
+- Implemented: Web 控制台登录、HMAC session、PBKDF2 密码哈希、对话调试、主动 tick、审批演练、记忆读写、检索查询、状态页。
+- Verification: 单元测试扩展到 23 个，全部通过；Playwright/Firefox 实际打开本地 `/ai/` 登录页，完成登录并发送“我回来了”，页面返回江徽音风格回复。

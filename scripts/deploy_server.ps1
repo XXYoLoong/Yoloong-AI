@@ -15,7 +15,9 @@
 param(
     [string]$HostName = $env:YOLOONG_SERVER_HOST,
     [string]$User = "root",
-    [string]$RemoteRoot = "/opt/yoloong-ai"
+    [string]$RemoteRoot = "/opt/yoloong-ai",
+    [string]$AdminUser = "yoloong",
+    [string]$AdminPassword = $env:YOLOONG_ADMIN_PASSWORD
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,6 +28,16 @@ if (-not $HostName) {
 }
 if (-not $env:DEEPSEEK_API_KEY -or -not $env:DASHSCOPE_API_KEY) {
     throw "DEEPSEEK_API_KEY and DASHSCOPE_API_KEY must exist in the local environment."
+}
+if (-not $AdminPassword) {
+    $generated = python -m yoloong_ai generate-admin --user $AdminUser | ConvertFrom-Json
+    $AdminPassword = $generated.admin_password
+    $AdminPasswordHash = $generated.admin_password_hash
+    $SessionSecret = $generated.session_secret
+} else {
+    $generated = python -m yoloong_ai generate-admin --user $AdminUser --password $AdminPassword | ConvertFrom-Json
+    $AdminPasswordHash = $generated.admin_password_hash
+    $SessionSecret = $generated.session_secret
 }
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -50,7 +62,12 @@ YOLOONG_REGION_PROFILE=china
 YOLOONG_APPROVAL_CHANNEL=wechat
 YOLOONG_ASSISTANT_NAME=江徽音
 YOLOONG_USER_NAME=游龙
-"@ | Set-Content -LiteralPath $secretFile -Encoding utf8NoBOM
+YOLOONG_WEB_BASE_PATH=/ai
+YOLOONG_PUBLIC_URL=https://www.yoloong.com/ai/
+YOLOONG_ADMIN_USER=$AdminUser
+YOLOONG_ADMIN_PASSWORD_HASH=$AdminPasswordHash
+YOLOONG_SESSION_SECRET=$SessionSecret
+"@ | Set-Content -LiteralPath $secretFile -Encoding UTF8
 scp $secretFile "${User}@${HostName}:/etc/yoloong-ai/yoloong-ai.env"
 ssh "${User}@${HostName}" "chmod 600 /etc/yoloong-ai/yoloong-ai.env"
 
@@ -59,3 +76,5 @@ ssh "${User}@${HostName}" "cp '$RemoteRoot/app/systemd/yoloong-ai.service' /etc/
 Remove-Item -LiteralPath $package -Force
 Remove-Item -LiteralPath $secretFile -Force
 Write-Host "Deployment finished for $HostName"
+Write-Host "Admin user: $AdminUser"
+Write-Host "Admin password: $AdminPassword"

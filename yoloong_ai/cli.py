@@ -22,6 +22,7 @@ from pathlib import Path
 import shutil
 
 from .autonomy import AutonomousAssistant
+from .auth import generate_password, generate_secret, hash_password
 from .config import RuntimeConfig
 from .memory import MemoryStore
 from .models import ModelRouter
@@ -102,7 +103,25 @@ def cmd_serve(args: argparse.Namespace) -> int:
     def factory() -> AutonomousAssistant:
         return build_assistant(config)
 
-    run_server(args.host, args.port, factory)
+    run_server(args.host, args.port, factory, config)
+    return 0
+
+
+def cmd_generate_admin(args: argparse.Namespace) -> int:
+    password = args.password or generate_password()
+    session_secret = generate_secret()
+    print(
+        json.dumps(
+            {
+                "admin_user": args.user,
+                "admin_password": password,
+                "admin_password_hash": hash_password(password),
+                "session_secret": session_secret,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -131,6 +150,11 @@ def parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8721)
     serve.set_defaults(func=cmd_serve)
+
+    admin = sub.add_parser("generate-admin")
+    admin.add_argument("--user", default="yoloong")
+    admin.add_argument("--password")
+    admin.set_defaults(func=cmd_generate_admin)
 
     return root
 

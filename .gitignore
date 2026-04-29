@@ -33,3 +33,5 @@ node_modules/
 openclaw-data/
 third_party/openclaw/
 tmp/
+output/
+.playwright-cli/
