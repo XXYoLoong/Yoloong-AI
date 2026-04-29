@@ -41,4 +41,5 @@ Yoloong-AI 24 小时在线个人微信助手
 - Verification: 独立测试目录 `tests/` 已覆盖 18 个用例，验证模型路由、密钥隐藏、记忆生命周期、审批阻断、人格加载、微信事件、主动关怀、OpenClaw 资产和搜索解析；`python -m unittest discover -s tests -v` 通过。
 - Verification: `python -m compileall yoloong_ai tests` 通过；`python -m yoloong_ai doctor` 成功识别本地 DeepSeek/DashScope 环境变量、OpenClaw CLI、npx CLI 和人格文件。
 - Server access: 通过 OpenSSH 和 PuTTY/plink 多次尝试连接 `47.121.183.23:22`，TCP 端口可达，但远端在 SSH banner/密钥交换前主动关闭连接；未能进入服务器执行盘点或部署，未写入任何服务器文件。
-- Next step: 提交并推送当前可验证代码；服务器部署需待 SSH 入口恢复或更换可用访问方式后执行。
+- Publish: 已提交 `a5949b6`（`Build OpenClaw-based Yoloong assistant core`）并推送到 `origin/main`。
+- Remaining caveat: 服务器部署和云端密钥写入尚未执行，原因是 SSH 入口在认证前被远端关闭；需要恢复 SSH banner/登录通道或提供新的可用访问入口后继续部署。
