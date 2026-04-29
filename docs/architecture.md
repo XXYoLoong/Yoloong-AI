@@ -116,8 +116,8 @@ flowchart TD
 守护进程：
 
 - `yoloong-ai.service`：运行 Python sidecar 和主动循环。
-- `openclaw.service`：运行 OpenClaw gateway。
-- `openclaw-weixin.service`：运行微信插件登录态。
+- `openclaw-gateway.service`：运行 OpenClaw gateway，监听本机 `18789`。
+- 微信插件作为 OpenClaw channel plugin 加载，扫码登录态保存在 OpenClaw state 目录，不单独维护微信 systemd 服务。
 
 ## 测试策略
 

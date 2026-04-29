@@ -18,6 +18,11 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-/opt/yoloong-ai}"
 ENV_DIR="${ENV_DIR:-/etc/yoloong-ai}"
 ENV_FILE="$ENV_DIR/yoloong-ai.env"
+OPENCLAW_HOME="${OPENCLAW_HOME:-/root/.openclaw}"
+OPENCLAW_GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
+BACKUP_ROOT="${BACKUP_ROOT:-/root/yoloong-ai-backups}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 apt-get update
 apt-get install -y git curl python3 python3-venv python3-pip nodejs npm
@@ -31,10 +36,112 @@ if command -v npm >/dev/null 2>&1; then
   npm install -g n
   n 24 || true
   npm install -g openclaw@latest
-  npx -y @tencent-weixin/openclaw-weixin-cli install
+  if command -v openclaw >/dev/null 2>&1; then
+    openclaw plugins install "@tencent-weixin/openclaw-weixin" || true
+    openclaw config set plugins.entries.openclaw-weixin.enabled true || true
+  fi
+  npx -y @tencent-weixin/openclaw-weixin-cli install || true
 fi
 
-cat > "$ENV_FILE" <<EOF
+mkdir -p "$OPENCLAW_HOME" "$BACKUP_ROOT"
+
+python3 - <<PY
+import json
+from pathlib import Path
+
+home = Path("$OPENCLAW_HOME")
+config_path = home / "openclaw.json"
+if config_path.exists():
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+else:
+    data = {}
+
+gateway = data.setdefault("gateway", {})
+gateway["port"] = int("$OPENCLAW_GATEWAY_PORT")
+gateway["mode"] = "local"
+gateway["bind"] = "loopback"
+gateway.setdefault("auth", {})["mode"] = "token"
+gateway.setdefault("tailscale", {})["mode"] = "off"
+
+plugins = data.setdefault("plugins", {})
+entries = plugins.setdefault("entries", {})
+entries.pop("qwen-portal-auth", None)
+entries.setdefault("openclaw-weixin", {})["enabled"] = True
+plugins["allow"] = ["openclaw-weixin"]
+
+agents = data.setdefault("agents", {})
+defaults = agents.setdefault("defaults", {})
+defaults["workspace"] = str(home / "workspace")
+
+config_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+WEIXIN_MANIFEST="$OPENCLAW_HOME/extensions/openclaw-weixin/openclaw.plugin.json"
+if [ -f "$WEIXIN_MANIFEST" ]; then
+  python3 - <<PY
+import json
+from pathlib import Path
+
+p = Path("$WEIXIN_MANIFEST")
+data = json.loads(p.read_text(encoding="utf-8"))
+data["channelConfigs"] = {
+    "openclaw-weixin": {
+        "label": "openclaw-weixin",
+        "description": "Weixin personal-account channel using QR login and long-poll messaging.",
+        "schema": {
+            "\$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "name": {"type": "string"},
+                "enabled": {"type": "boolean"},
+                "baseUrl": {"type": "string", "default": "https://ilinkai.weixin.qq.com"},
+                "cdnBaseUrl": {"type": "string", "default": "https://novac2c.cdn.weixin.qq.com/c2c"},
+                "routeTag": {"anyOf": [{"type": "number"}, {"type": "string"}]},
+                "botAgent": {"type": "string"},
+                "channelConfigUpdatedAt": {"type": "string"},
+                "accounts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "name": {"type": "string"},
+                            "enabled": {"type": "boolean"},
+                            "baseUrl": {"type": "string", "default": "https://ilinkai.weixin.qq.com"},
+                            "cdnBaseUrl": {"type": "string", "default": "https://novac2c.cdn.weixin.qq.com/c2c"},
+                            "routeTag": {"anyOf": [{"type": "number"}, {"type": "string"}]},
+                            "botAgent": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        },
+    }
+}
+p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+fi
+
+if [ -d "$REPO_ROOT/openclaw/workspace" ]; then
+  if [ -d "$OPENCLAW_HOME/workspace" ] && [ -n "$(find "$OPENCLAW_HOME/workspace" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    cp -a "$OPENCLAW_HOME/workspace" "$BACKUP_ROOT/openclaw-workspace-$timestamp"
+  fi
+  mkdir -p "$OPENCLAW_HOME/workspace"
+  cp -a "$REPO_ROOT/openclaw/workspace/." "$OPENCLAW_HOME/workspace/"
+  touch "$OPENCLAW_HOME/workspace/.yoloong-managed"
+fi
+
+if [ -f "$REPO_ROOT/systemd/openclaw-gateway.service" ]; then
+  cp "$REPO_ROOT/systemd/openclaw-gateway.service" /etc/systemd/system/openclaw-gateway.service
+  systemctl daemon-reload
+  systemctl enable --now openclaw-gateway.service || true
+  systemctl restart openclaw-gateway.service || true
+fi
+
+if [ ! -s "$ENV_FILE" ]; then
+  cat > "$ENV_FILE" <<EOF
 DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
 DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
 YOLOONG_DB_PATH=$APP_ROOT/data/yoloong.sqlite3
@@ -51,6 +158,7 @@ YOLOONG_ADMIN_USER=${YOLOONG_ADMIN_USER:-yoloong}
 YOLOONG_ADMIN_PASSWORD_HASH=${YOLOONG_ADMIN_PASSWORD_HASH:-}
 YOLOONG_SESSION_SECRET=${YOLOONG_SESSION_SECRET:-}
 EOF
+fi
 chmod 600 "$ENV_FILE"
 
 echo "Server bootstrap complete at $APP_ROOT."

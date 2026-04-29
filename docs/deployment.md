@@ -23,6 +23,19 @@ python -m yoloong_ai doctor
 python -m unittest discover -s tests
 ```
 
+## 一键部署
+
+部署脚本会打包当前 `HEAD`、生成 root-only env 文件、上传到服务器、执行 `scripts/bootstrap_server.sh`、安装/更新 OpenClaw 微信插件、替换 OpenClaw 工作区、启动 `yoloong-ai.service` 和 `openclaw-gateway.service`，并为现有 `www.yoloong.com` Nginx server block 注入 `/ai/` 反向代理。
+
+```powershell
+$env:YOLOONG_SERVER_HOST="47.121.183.23"
+$env:DEEPSEEK_API_KEY="..."
+$env:DASHSCOPE_API_KEY="..."
+.\scripts\deploy_server.ps1
+```
+
+脚本故意拒绝部署脏工作区，因为它使用 `git archive HEAD` 打包；部署前先完成测试、提交并推送，避免把旧版本发上服务器。
+
 ## 服务器准备
 
 Ubuntu 24.04 推荐：
@@ -79,7 +92,7 @@ https://www.yoloong.com/ai/
 openclaw channels login --channel openclaw-weixin
 ```
 
-手机扫码完成后，把 `openclaw/workspace` 同步到 OpenClaw 工作区。
+手机扫码完成后，按 OpenClaw 配对提示批准本人微信账号；部署脚本已把 `openclaw/workspace` 同步到 `/root/.openclaw/workspace`，并会在替换前备份旧工作区到 `/root/yoloong-ai-backups/`。
 
 ## systemd
 
@@ -92,4 +105,16 @@ sudo systemctl enable --now yoloong-ai.service
 sudo systemctl status yoloong-ai.service
 ```
 
-OpenClaw 和微信插件服务同理按实际安装路径配置。
+OpenClaw Gateway 使用 `systemd/openclaw-gateway.service`，由 `scripts/bootstrap_server.sh` 自动复制并启动。微信插件作为 OpenClaw channel plugin 由 Gateway 加载，不需要单独的微信 systemd 服务。
+
+## Nginx
+
+`scripts/configure_nginx_ai.sh` 会在目标 server block 中加入：
+
+```nginx
+location /ai/ {
+    proxy_pass http://127.0.0.1:8721;
+}
+```
+
+脚本会先备份命中的 Nginx 配置，执行 `nginx -t`，通过后 reload；若测试失败，会恢复备份并中止。

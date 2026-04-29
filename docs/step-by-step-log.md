@@ -52,3 +52,21 @@ Yoloong-AI 24 小时在线个人微信助手
 - Decision: 不直接删除根站点，先新增 `https://www.yoloong.com/ai/` 私有后台；旧 OpenClaw 工作区需备份后替换为江徽音工作区。若后续确认旧服务无用，再备份停用。
 - Implemented: Web 控制台登录、HMAC session、PBKDF2 密码哈希、对话调试、主动 tick、审批演练、记忆读写、检索查询、状态页。
 - Verification: 单元测试扩展到 23 个，全部通过；Playwright/Firefox 实际打开本地 `/ai/` 登录页，完成登录并发送“我回来了”，页面返回江徽音风格回复。
+
+### 2026-04-29 Round 4
+
+- Request received: 用户要求接着上个线程没有完成的任务继续完成。
+- Recovery: 确认真实仓库在 `F:\YL_AI\Yoloong-AI`，外层目录不是 Git 仓库；当前未提交改动集中在服务器部署脚本和新增 `systemd/openclaw-gateway.service`。
+- Current objective: 保护上轮改动，补齐部署脚本/OpenClaw gateway 服务/文档之间的一致性，运行本地验证，并在可用访问条件下继续线上部署闭环。
+- Initial assumption: 上轮已完成本地 Web 后台和测试，剩余风险主要在部署脚本生成包、远端 systemd/nginx/OpenClaw 配置、微信扫码授权和最终验证。
+- Finding: 线上 SSH 当前返回 `Permission denied (publickey,password)`，本地存在 `DEEPSEEK_API_KEY` 与 `DASHSCOPE_API_KEY`，但无法直接进入服务器执行部署。
+- Implemented: `scripts/deploy_server.ps1` 现在拒绝脏工作区，避免 `git archive HEAD` 部署旧代码；远端会执行 `bootstrap_server.sh`、启用 `yoloong-ai.service`、调用 Nginx `/ai/` 配置脚本并做本机 health check。
+- Implemented: `scripts/bootstrap_server.sh` 会安装/启用 `@tencent-weixin/openclaw-weixin`、备份旧 OpenClaw workspace、同步江徽音工作区并启动 `openclaw-gateway.service`。
+- Implemented: 新增 `scripts/configure_nginx_ai.sh`，为现有 `www.yoloong.com` server block 幂等注入 `/ai/` 反向代理，`nginx -t` 失败时恢复备份。
+- Implemented: `systemd/openclaw-gateway.service` 改用 `/usr/bin/env openclaw` 和 loopback bind，降低 `/usr/bin`/`/usr/local/bin` 差异导致的启动风险。
+- Documentation: 更新部署说明和架构文档，明确微信插件由 OpenClaw Gateway 加载，不再单独维护微信 systemd 服务。
+- Verification: `python -m unittest discover -s tests -v` 通过 27 个用例；`python -m compileall yoloong_ai tests` 通过；`bash -n scripts/bootstrap_server.sh scripts/configure_nginx_ai.sh` 通过；`deploy_server.ps1` 解析通过；`git diff --check` 通过。
+- Verification: `python -m yoloong_ai doctor` 能识别人格文件、本地 OpenClaw CLI、npx CLI 和已设置的模型密钥，密钥仅以掩码形式输出。
+- Verification: 以 dry-run hostname 执行 `scripts/deploy_server.ps1` 时成功触发脏工作区保护，证明不会把未提交的旧 `HEAD` 错误部署上服务器。
+- Remaining blocker: 当前 SSH 到 `root@47.121.183.23` 返回 `Permission denied (publickey,password)`，因此本轮无法实际进入服务器执行部署、Nginx reload 或微信扫码登录。
+- Next step: 提交并推送部署闭环修复；待 SSH 凭据恢复后运行 `scripts/deploy_server.ps1` 并执行 `openclaw channels login --channel openclaw-weixin` 完成扫码绑定。

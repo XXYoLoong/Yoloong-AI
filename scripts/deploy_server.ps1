@@ -29,29 +29,28 @@ if (-not $HostName) {
 if (-not $env:DEEPSEEK_API_KEY -or -not $env:DASHSCOPE_API_KEY) {
     throw "DEEPSEEK_API_KEY and DASHSCOPE_API_KEY must exist in the local environment."
 }
+
 if (-not $AdminPassword) {
     $generated = python -m yoloong_ai generate-admin --user $AdminUser | ConvertFrom-Json
     $AdminPassword = $generated.admin_password
-    $AdminPasswordHash = $generated.admin_password_hash
-    $SessionSecret = $generated.session_secret
 } else {
     $generated = python -m yoloong_ai generate-admin --user $AdminUser --password $AdminPassword | ConvertFrom-Json
-    $AdminPasswordHash = $generated.admin_password_hash
-    $SessionSecret = $generated.session_secret
 }
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..")
 $runtime = Join-Path $repo ".runtime"
 $package = Join-Path $runtime "deploy-yoloong-ai.tar.gz"
+$secretFile = Join-Path $runtime "yoloong-ai.env"
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 
-git -C $repo archive --format=tar.gz -o $package HEAD
-scp $package "${User}@${HostName}:/tmp/yoloong-ai.tar.gz"
-ssh "${User}@${HostName}" "mkdir -p '$RemoteRoot/app' && tar -xzf /tmp/yoloong-ai.tar.gz -C '$RemoteRoot/app'"
-ssh "${User}@${HostName}" "cd '$RemoteRoot/app' && bash scripts/bootstrap_server.sh"
+$dirty = git -C $repo status --porcelain
+if ($dirty) {
+    throw "Refusing to deploy a dirty worktree because git archive packages HEAD only. Commit or stash changes first."
+}
 
-$secretFile = Join-Path $runtime "yoloong-ai.env"
-@"
+git -C $repo archive --format=tar.gz -o $package HEAD
+
+$envContent = @"
 DEEPSEEK_API_KEY=$env:DEEPSEEK_API_KEY
 DASHSCOPE_API_KEY=$env:DASHSCOPE_API_KEY
 YOLOONG_DB_PATH=$RemoteRoot/data/yoloong.sqlite3
@@ -65,16 +64,55 @@ YOLOONG_USER_NAME=游龙
 YOLOONG_WEB_BASE_PATH=/ai
 YOLOONG_PUBLIC_URL=https://www.yoloong.com/ai/
 YOLOONG_ADMIN_USER=$AdminUser
-YOLOONG_ADMIN_PASSWORD_HASH=$AdminPasswordHash
-YOLOONG_SESSION_SECRET=$SessionSecret
-"@ | Set-Content -LiteralPath $secretFile -Encoding UTF8
-scp $secretFile "${User}@${HostName}:/etc/yoloong-ai/yoloong-ai.env"
-ssh "${User}@${HostName}" "chmod 600 /etc/yoloong-ai/yoloong-ai.env"
+YOLOONG_ADMIN_PASSWORD_HASH=$($generated.admin_password_hash)
+YOLOONG_SESSION_SECRET=$($generated.session_secret)
+"@
+[IO.File]::WriteAllText($secretFile, $envContent, [Text.UTF8Encoding]::new($false))
 
-ssh "${User}@${HostName}" "cp '$RemoteRoot/app/systemd/yoloong-ai.service' /etc/systemd/system/yoloong-ai.service && systemctl daemon-reload && systemctl enable --now yoloong-ai.service"
+try {
+    scp $package "${User}@${HostName}:/tmp/yoloong-ai.tar.gz"
+    scp $secretFile "${User}@${HostName}:/tmp/yoloong-ai.env"
 
-Remove-Item -LiteralPath $package -Force
-Remove-Item -LiteralPath $secretFile -Force
+    $remoteScript = @'
+set -euo pipefail
+
+remote_root="$1"
+
+mkdir -p "$remote_root/data" "$remote_root/logs" /etc/yoloong-ai
+rm -rf "$remote_root/app"
+mkdir -p "$remote_root/app"
+tar -xzf /tmp/yoloong-ai.tar.gz -C "$remote_root/app"
+install -m 600 /tmp/yoloong-ai.env /etc/yoloong-ai/yoloong-ai.env
+
+cd "$remote_root/app"
+APP_ROOT="$remote_root" bash scripts/bootstrap_server.sh
+
+cp "$remote_root/app/systemd/yoloong-ai.service" /etc/systemd/system/yoloong-ai.service
+systemctl daemon-reload
+systemctl enable --now yoloong-ai.service
+systemctl restart yoloong-ai.service
+
+if command -v nginx >/dev/null 2>&1; then
+  bash "$remote_root/app/scripts/configure_nginx_ai.sh"
+fi
+
+systemctl is-active yoloong-ai.service
+systemctl is-active openclaw-gateway.service || true
+curl -fsS http://127.0.0.1:8721/ai/health >/dev/null
+
+rm -f /tmp/yoloong-ai.tar.gz /tmp/yoloong-ai.env
+'@
+    $remoteScript | ssh "${User}@${HostName}" "bash -s -- '$RemoteRoot'"
+} finally {
+    if (Test-Path $package) {
+        Remove-Item -LiteralPath $package -Force
+    }
+    if (Test-Path $secretFile) {
+        Remove-Item -LiteralPath $secretFile -Force
+    }
+}
+
 Write-Host "Deployment finished for $HostName"
 Write-Host "Admin user: $AdminUser"
 Write-Host "Admin password: $AdminPassword"
+Write-Host "Next: ssh ${User}@${HostName} 'openclaw channels login --channel openclaw-weixin' and scan the QR code with WeChat."
