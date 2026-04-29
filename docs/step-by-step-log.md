@@ -71,3 +71,13 @@ Yoloong-AI 24 小时在线个人微信助手
 - Remaining blocker: 当前 SSH 到 `root@47.121.183.23` 返回 `Permission denied (publickey,password)`，因此本轮无法实际进入服务器执行部署、Nginx reload 或微信扫码登录。
 - Publish: 部署闭环修复已提交并推送到 `origin/main`，本地工作区恢复干净。
 - Remaining next step: 待 SSH 凭据恢复后运行 `scripts/deploy_server.ps1` 并执行 `openclaw channels login --channel openclaw-weixin` 完成扫码绑定。
+
+### 2026-04-29 Round 5
+
+- Request received: 用户要求按上一轮计划继续执行，重点完成 OpenClaw 个人微信扫码授权、错误落账、线上验证、测试和发布闭环。
+- Recovery: 本地仓库干净，`main` 与 `origin/main` 均在 `3abafed`；部署脚本和 OpenClaw gateway 模板已包含上一轮修复。
+- Blocker: 当前运行环境到 `47.121.183.23:22` 的 TCP 连接失败，SSH 在认证前超时；因此无法进入服务器清理旧登录进程、生成新的服务器侧微信二维码或确认 `/root/.openclaw` 账号凭据。
+- Online verification: 公网 `https://www.yoloong.com/ai/health` 返回 `{"ok": true}`；后台登录成功，`/api/status` 显示 DeepSeek/DashScope 密钥已按掩码加载且服务非离线。
+- Online verification: 已通过公网后台验证 DeepSeek 对话、主动 tick、记忆写入/检索、中国地区查询构造；审批接口使用正确 `name`/`description`/`target` payload 后生成 high 风险确认 ID，并通过 `/reject` 清空，待审批列表为空。
+- Correction logged: 上一次误把“二维码已生成”接近“微信完成接入”的表达是错误边界；完成标准已补充到部署文档，必须以账号凭据、频道 configured、网关重启保留和实际微信消息链路为准。
+- Current status: Yoloong-AI Web 后台在线，微信扫码授权未完成；阻塞原因是当前网络无法访问服务器 SSH，而不是 OpenClaw 或 API 已完成失败。

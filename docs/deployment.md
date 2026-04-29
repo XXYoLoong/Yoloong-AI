@@ -94,6 +94,15 @@ openclaw channels login --channel openclaw-weixin
 
 手机扫码完成后，按 OpenClaw 配对提示批准本人微信账号；部署脚本已把 `openclaw/workspace` 同步到 `/root/.openclaw/workspace`，并会在替换前备份旧工作区到 `/root/yoloong-ai-backups/`。
 
+微信绑定的完成标准不是“二维码已生成”，而是同时满足：
+
+- `/root/.openclaw` 下出现 `openclaw-weixin` 账号凭据文件。
+- `openclaw channels list` 或频道状态显示微信账号已 configured。
+- `openclaw-gateway.service` 重启后登录态仍保留。
+- 至少完成一次微信入站或出站链路验证。
+
+如果当前网络无法连接服务器 `22` 端口，只能验证公网 `/ai/` 后台，不能生成服务器侧二维码，也不能判定微信已接入。
+
 ## systemd
 
 复制模板：
