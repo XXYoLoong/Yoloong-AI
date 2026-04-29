@@ -69,4 +69,5 @@ Yoloong-AI 24 小时在线个人微信助手
 - Verification: `python -m yoloong_ai doctor` 能识别人格文件、本地 OpenClaw CLI、npx CLI 和已设置的模型密钥，密钥仅以掩码形式输出。
 - Verification: 以 dry-run hostname 执行 `scripts/deploy_server.ps1` 时成功触发脏工作区保护，证明不会把未提交的旧 `HEAD` 错误部署上服务器。
 - Remaining blocker: 当前 SSH 到 `root@47.121.183.23` 返回 `Permission denied (publickey,password)`，因此本轮无法实际进入服务器执行部署、Nginx reload 或微信扫码登录。
-- Next step: 提交并推送部署闭环修复；待 SSH 凭据恢复后运行 `scripts/deploy_server.ps1` 并执行 `openclaw channels login --channel openclaw-weixin` 完成扫码绑定。
+- Publish: 部署闭环修复已提交并推送到 `origin/main`，本地工作区恢复干净。
+- Remaining next step: 待 SSH 凭据恢复后运行 `scripts/deploy_server.ps1` 并执行 `openclaw channels login --channel openclaw-weixin` 完成扫码绑定。
