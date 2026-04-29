@@ -24,7 +24,7 @@ WorkingDirectory=/root
 Environment=OPENCLAW_HOME=/root/.openclaw
 Environment=NODE_OPTIONS=--max-old-space-size=1024
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/bin/env openclaw gateway run --port 18789 --bind loopback --allow-unconfigured
+ExecStart=/usr/bin/env openclaw gateway run --port 18789 --bind loopback --allow-unconfigured --force
 Restart=always
 RestartSec=5
 

@@ -83,3 +83,14 @@ Yoloong-AI 24 小时在线个人微信助手
 - Verification: `python -m unittest discover -s tests -v` 通过 27 个用例；`python -m compileall yoloong_ai tests`、`git diff --check`、部署脚本语法检查和已跟踪文件敏感信息扫描均通过。
 - Publish: 文档闭环记录已提交并推送到 `origin/main`，提交为 `48e3f28`。
 - Current status: Yoloong-AI Web 后台在线，微信扫码授权未完成；阻塞原因是当前网络无法访问服务器 SSH，而不是 OpenClaw 或 API 已完成失败。
+
+### 2026-04-29 Round 6
+
+- Request received: 用户已恢复服务器 TCP/SSH，要求继续完成微信授权闭环。
+- Recovery: `47.121.183.23:22` 已恢复连通，root SSH 登录成功；旧微信二维码登录进程已过期退出，无账号凭据落盘。
+- WeChat binding: 重新运行 `openclaw channels login --channel openclaw-weixin --verbose` 并生成新二维码；用户扫码后服务器日志显示“已将此 OpenClaw 连接到微信”。
+- Verification: `/root/.openclaw/openclaw-weixin/accounts.json` 已出现账号索引，账号凭据文件中 token 已存在；`openclaw channels list` 显示 `openclaw-weixin default: configured, enabled`。
+- Gateway repair: 发现旧孤立 `openclaw-gateway` 进程占用 `18789` 导致 systemd 反复重启；已停服务、清理旧 PID，并将 gateway service 固定为 `openclaw gateway run --port 18789 --bind loopback --allow-unconfigured --force`。
+- WeChat delivery: 已通过 `openclaw message send --channel openclaw-weixin` 向本人微信发送联调消息，OpenClaw 返回 messageId，出站链路验证通过。
+- Online verification: 公网 `/ai/health`、后台登录、`/api/status`、DeepSeek 对话、主动 tick、高风险审批、记忆写入/检索和中国地区查询构造均通过；测试审批已通过 `/reject` 清空，待审批列表为空。
+- Local verification: `python -m unittest discover -s tests -v` 通过 27 个用例；`python -m compileall yoloong_ai tests`、`git diff --check` 和已跟踪文件敏感信息扫描均通过。

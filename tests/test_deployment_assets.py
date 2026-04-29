@@ -58,6 +58,7 @@ class DeploymentAssetTests(unittest.TestCase):
         self.assertIn("ExecStart=/usr/bin/env openclaw gateway run", service)
         self.assertIn("--bind loopback", service)
         self.assertIn("--port 18789", service)
+        self.assertIn("--force", service)
 
 
 if __name__ == "__main__":
